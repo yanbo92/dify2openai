@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import fetch from "node-fetch";
 dotenv.config();
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 
 if (!process.env.DIFY_API_URL) throw new Error("DIFY API URL is required.");
