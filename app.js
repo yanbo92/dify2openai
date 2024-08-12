@@ -6,7 +6,6 @@ dotenv.config();
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
-
 if (!process.env.DIFY_API_URL) throw new Error("DIFY API URL is required.");
 function generateId() {
   let result = "";
@@ -17,6 +16,7 @@ function generateId() {
   }
   return result;
 }
+
 const app = express();
 app.use(bodyParser.json());
 const botType = process.env.BOT_TYPE || 'Chat';
@@ -37,6 +37,7 @@ switch (botType) {
   default:
     throw new Error('Invalid bot type in the environment variable.');
 }
+
 var corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -267,9 +268,11 @@ app.post("/v1/chat/completions", async (req, res) => {
       let buffer = "";
       let skipWorkflowFinished = false;
 
+      console.log('Starting non-streaming response processing.');
 
       const stream = resp.body;
       stream.on("data", (chunk) => {
+        console.log('Received chunk:', chunk.toString());
         buffer += chunk.toString();
         let lines = buffer.split("\n");
 
@@ -330,11 +333,14 @@ app.post("/v1/chat/completions", async (req, res) => {
       });
 
       stream.on("end", () => {
+        console.log('Stream ended.');
         if (hasError) {
+          console.error("Error occurred during stream processing.");
           res
             .status(500)
             .json({ error: "An error occurred while processing the request." });
         } else if (messageEnded) {
+          console.log("Message processing ended successfully.");
           const formattedResponse = {
             id: `chatcmpl-${generateId()}`,
             object: "chat.completion",
@@ -358,13 +364,32 @@ app.post("/v1/chat/completions", async (req, res) => {
           res.set("Content-Type", "application/json");
           res.send(jsonResponse);
         } else {
-          res.status(500).json({ error: "Unexpected end of stream." });
+          console.error("Unexpected end of stream detected.");
+          res.status(500).json({
+            error: "Unexpected end of stream.",
+            context: {
+              result,
+              buffer,
+              usageData,
+              hasError,
+              messageEnded,
+              timestamp: new Date().toISOString()
+            }
+          });
         }
       });
     }
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Critical Error:", error);
+    res.status(500).json({
+      error: "An unexpected error occurred while processing the request.",
+      details: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
-app.listen(process.env.PORT || 3000);
+app.listen(process.env.PORT || 3000, () => {
+  console.log(`Server running on port ${process.env.PORT || 3000}`);
+});
