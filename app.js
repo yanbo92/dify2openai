@@ -7,6 +7,7 @@ dotenv.config();
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 if (!process.env.DIFY_API_URL) throw new Error("DIFY API URL is required.");
+
 function generateId() {
   let result = "";
   const characters =
@@ -88,6 +89,8 @@ app.get('/v1/models', (req, res) => {
 app.post("/v1/chat/completions", async (req, res) => {
   const authHeader =
     req.headers["authorization"] || req.headers["Authorization"];
+  const cookieHeader = req.headers["cookie"]; // Get the cookie header if it exists
+
   if (!authHeader) {
     return res.status(401).json({
       code: 401,
@@ -102,6 +105,7 @@ app.post("/v1/chat/completions", async (req, res) => {
       });
     }
   }
+
   try {
     const data = req.body;
     const messages = data.messages;
@@ -115,6 +119,7 @@ app.post("/v1/chat/completions", async (req, res) => {
     } else if (botType === 'Completion' || botType === 'Workflow') {
       queryString = messages[messages.length - 1].content;
     }
+
     const stream = data.stream !== undefined ? data.stream : false;
     let requestBody;
     if (inputVariable) {
@@ -135,12 +140,19 @@ app.post("/v1/chat/completions", async (req, res) => {
         auto_generate_name: false
       };
     }
+
+    // Build headers to forward, including the cookie if it exists
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authHeader.split(" ")[1]}`,
+    };
+    if (cookieHeader) {
+      headers["Cookie"] = cookieHeader;
+    }
+
     const resp = await fetch(process.env.DIFY_API_URL + apiPath, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authHeader.split(" ")[1]}`,
-      },
+      headers: headers, // Use the built headers object
       body: JSON.stringify(requestBody),
     });
 
