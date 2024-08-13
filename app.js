@@ -89,7 +89,7 @@ app.get('/v1/models', (req, res) => {
 app.post("/v1/chat/completions", async (req, res) => {
   const authHeader =
     req.headers["authorization"] || req.headers["Authorization"];
-  const cookieHeader = req.headers["cookie"]; // Get the cookie header if it exists
+  let cookieHeader = req.headers["cookie"]; // Get the cookie header if it exists
 
   if (!authHeader) {
     return res.status(401).json({
@@ -106,6 +106,11 @@ app.post("/v1/chat/completions", async (req, res) => {
     }
   }
 
+  // Use cookie from environment variable if no cookie is provided in the request
+  if (!cookieHeader && process.env.COOKIE) {
+    cookieHeader = process.env.COOKIE;
+  }
+
   try {
     const data = req.body;
     const messages = data.messages;
@@ -113,7 +118,7 @@ app.post("/v1/chat/completions", async (req, res) => {
     if (botType === 'Chat') {
       const lastMessage = messages[messages.length - 1];
       queryString = `here is our talk history:\n'''\n${messages
-        .slice(0, -1) 
+        .slice(0, -1)
         .map((message) => `${message.role}: ${message.content}`)
         .join('\n')}\n'''\n\nhere is my question:\n${lastMessage.content}`;
     } else if (botType === 'Completion' || botType === 'Workflow') {
@@ -165,7 +170,6 @@ app.post("/v1/chat/completions", async (req, res) => {
       let isFirstChunk = true;
 
       stream.on("data", (chunk) => {
-
         buffer += chunk.toString();
         let lines = buffer.split("\n");
 
