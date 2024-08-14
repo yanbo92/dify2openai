@@ -87,9 +87,14 @@ app.get('/v1/models', (req, res) => {
 });
 
 app.post("/v1/chat/completions", async (req, res) => {
+  console.log("Received a request to /v1/chat/completions");
+
   const authHeader =
     req.headers["authorization"] || req.headers["Authorization"];
   let cookieHeader = req.headers["cookie"]; // Get the cookie header if it exists
+
+  console.log("Authorization header:", authHeader);
+  console.log("Initial cookie header from request:", cookieHeader);
 
   if (!authHeader) {
     return res.status(401).json({
@@ -109,6 +114,9 @@ app.post("/v1/chat/completions", async (req, res) => {
   // Use cookie from environment variable if no cookie is provided in the request
   if (!cookieHeader && process.env.COOKIE) {
     cookieHeader = process.env.COOKIE;
+    console.log("No cookie in request, using COOKIE from env:", cookieHeader);
+  } else {
+    console.log("Using cookie from request header or no COOKIE in env.");
   }
 
   try {
@@ -154,6 +162,9 @@ app.post("/v1/chat/completions", async (req, res) => {
     if (cookieHeader) {
       headers["Cookie"] = cookieHeader;
     }
+
+    console.log("Headers to be sent with the request:", headers);
+    console.log("Request body:", requestBody);
 
     const resp = await fetch(process.env.DIFY_API_URL + apiPath, {
       method: "POST",
